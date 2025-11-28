@@ -13,7 +13,7 @@ This is a repository for recoding the knowledge during Vision Transformer learni
 
 ## Reference
 ### 📕Paper
-[**Transformer**]((https://proceedings.neurips.cc/paper_files/paper/2017/file/3f5ee243547dee91fbd053c1c4a845aa-Paper.pdf)): *Attention Is All You Need* (**2017 NeurIPS**) 
+[**Transformer**](https://proceedings.neurips.cc/paper_files/paper/2017/file/3f5ee243547dee91fbd053c1c4a845aa-Paper.pdf): *Attention Is All You Need* (**2017 NeurIPS**) 
 
 [**ViT**](https://arxiv.org/pdf/2010.11929/1000): *An Image is Worth 16×16 Words: Transformers for Image Recognition at Scale* (**2021 ICLR**) 
 
