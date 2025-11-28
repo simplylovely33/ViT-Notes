@@ -18,8 +18,6 @@ This is a repository for recoding the knowledge during Vision Transformer learni
 **ViT**: An Image is Worth 16×16 Words: Transformers for Image Recognition at Scale (2021 ICLR) [📕](https://arxiv.org/pdf/2010.11929/1000)
 
 ### NoteBook
-The Annotated Transformer [🔗](https://nlp.seas.harvard.edu/annotated-transformer/)
+[1] The Annotated Transformer [🔗](https://nlp.seas.harvard.edu/annotated-transformer/) [2] Illustrated Vision Transformers [🔗](https://medium.com/analytics-vidhya/illustrated-vision-transformers-165f4d0c3dd1) 
 
-Illustrated Vision Transformers [🔗](https://medium.com/analytics-vidhya/illustrated-vision-transformers-165f4d0c3dd1) 
-
-Vision Transformers from Scratch(Pytorch) [🔗](https://medium.com/@brianpulfer/vision-transformers-from-scratch-pytorch-a-step-by-step-guide-96c3313c2e0c)
+[3] Vision Transformers from Scratch(Pytorch) [🔗](https://medium.com/@brianpulfer/vision-transformers-from-scratch-pytorch-a-step-by-step-guide-96c3313c2e0c)
