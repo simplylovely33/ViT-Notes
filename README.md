@@ -2,10 +2,11 @@
 This is a repository for recoding the knowledge during Vision Transformer learning.
 
 ## Prerequisites
-1. `nn.Linear(in_features, out_features)` is applicable to huge dataset because the standard initialization of the linear mapper weights is smoothable which is more stable for training. When dealing with small dataset, we need to initialize the weights manually to increase the diversity of weight distribution for enhancing the initial representation.
-```
-   nn.init.xavier_uniform_(LAYER.weight)
-```
+### Initialization
+By default, `nn.Linear(in_features, out_features)` uses a small-variance initialization, which helps stabilize early training on *large* datasets.
+
+For *smaller* or *more difficult* datasets, using a larger initialization variance can improve performance by increasing the diversity of early weight representations.
+
 
 ## Update Log
 `models/transformer.py` references [[1]](#reference) to reproduce the architecture.
