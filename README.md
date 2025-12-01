@@ -2,7 +2,10 @@
 This is a repository for recoding the knowledge during Vision Transformer learning.
 
 ## Prerequisites
-
+1. `nn.Linear(in_features, out_features)` is applicable to huge dataset because the standard initialization of the linear mapper weights is smoothable which is more stable for training. When dealing with small dataset, we need to initialize the weights manually to increase the diversity of weight distribution for enhancing the initial representation.
+```
+   nn.init.xavier_uniform_(LAYER.weight)
+```
 
 ## Update Log
 `models/transformer.py` references [[1]](#reference) to reproduce the architecture.
@@ -16,6 +19,8 @@ This is a repository for recoding the knowledge during Vision Transformer learni
 [**Transformer**](https://proceedings.neurips.cc/paper_files/paper/2017/file/3f5ee243547dee91fbd053c1c4a845aa-Paper.pdf): *Attention Is All You Need* (**2017 NeurIPS**) 
 
 [**ViT**](https://arxiv.org/pdf/2010.11929/1000): *An Image is Worth 16×16 Words: Transformers for Image Recognition at Scale* (**2021 ICLR**) 
+
+[**TimeSformer**](https://proceedings.mlr.press/v139/bertasius21a/bertasius21a.pdf): *Is Space-Time Attention All You Need for Video Understanding?* (**2021 ICML**) 
 
 ### 🔗NoteBook
 [[1]](https://nlp.seas.harvard.edu/annotated-transformer/) The Annotated Transformer [[2]](https://medium.com/analytics-vidhya/illustrated-vision-transformers-165f4d0c3dd1)  Illustrated Vision Transformers 
