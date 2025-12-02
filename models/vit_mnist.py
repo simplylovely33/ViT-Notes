@@ -1,9 +1,3 @@
-'''
-This manuscript references "Vision Transformers from Scratch (PyTorch): A step-by-step guide",
-which is a guidance to train a ViT on MNIST dataset.
-(https://medium.com/@brianpulfer/vision-transformers-from-scratch-pytorch-a-step-by-step-guide-96c3313c2e0c)
-'''
-import copy
 import math
 import numpy as np
 from tqdm import tqdm, trange
@@ -19,9 +13,7 @@ np.random.seed(0)
 torch.manual_seed(0)
 
 def device_confirmation():
-    """
-    Confirm the device availability information
-    """
+    "Confirm the device availability information."
     if torch.cuda.is_available():
         device_id = torch.cuda.current_device()
         print(f"[INFO]: Using {torch.cuda.get_device_name(device_id)} as default device.")
@@ -31,30 +23,26 @@ def device_confirmation():
         device = torch.device('cpu')
     return device
 
-def clones(module, N):
-    "Produce N identical layers."
-    return nn.ModuleList([copy.deepcopy(module) for _ in range(N)])
-
-def patchify(images, n_patches):
-    n, c , h, w = images.shape
+def Patchify(images, n_patches):
+    """
+    images: (B, C, H, W)
+    returns: (B, n_patches**2, patch_dim)
+    """
+    n, c, h, w = images.shape
     assert h == w, "Patchify method is implemented for square images only"
-    patches = torch.zeros(n, n_patches ** 2, c * h * w // n_patches ** 2)
+    assert h % n_patches == 0, "Image size must be divisible by n_patches"
     patch_size = h // n_patches
-
-    for idx, image in enumerate(images):
-        for i in range(n_patches):
-            for j in range(n_patches):
-                patch = image[:, i*patch_size: (i+1)*patch_size, j*patch_size: (j+1)*patch_size]
-                patches[idx, i * n_patches + j] = patch.flatten()
+    patch_dim = c * patch_size * patch_size
+    patches = images.unfold(2, patch_size, patch_size).unfold(3, patch_size, patch_size)
+    # patches shape: (B, C, n_patches, n_patches, patch_size, patch_size)
+    patches = patches.permute(0, 2, 3, 1, 4, 5).contiguous()  # (B, n_patches, n_patches, C, p, p)
+    patches = patches.view(n, n_patches * n_patches, patch_dim)
     return patches
 
 class PositionalEncoding(nn.Module):
     "Implement the PE function."
-    def __init__(self, d_model, dropout, max_len=5000):
+    def __init__(self, d_model, max_len=5000):
         super(PositionalEncoding, self).__init__()
-        self.dropout = nn.Dropout(p=dropout)
-
-        # Compute the positional encodings once in log space.
         pe = torch.zeros(max_len, d_model)
         position = torch.arange(0, max_len).unsqueeze(1)
         div_term = torch.exp(
@@ -65,51 +53,59 @@ class PositionalEncoding(nn.Module):
         self.register_buffer("pe", pe)
 
     def forward(self, x):
-        x = x + self.pe[:x.size(1), : ].expand(x.size(0), -1, -1)
-        return self.dropout(x)
+        pe = self.pe[:x.size(1), :].unsqueeze(0)
+        return x + pe
 
 def attention(query, key, value, mask=None, dropout=None):
-    "Compute 'Scaled Dot Product Attention'"
-    d_k = query.size(-1)
-    scores = torch.matmul(query, key.transpose(-2, -1)) / math.sqrt(d_k)
+    "Compute Scaled Dot Product Attention.'"
     if mask is not None:
-        scores = scores.masked_fill(mask == 0, -1e9)
-    p_attn = scores.softmax(dim=-1)
-    if dropout is not None:
-        p_attn = dropout(p_attn)
-    return torch.matmul(p_attn, value), p_attn
+        if mask.dim() == 2:
+            mask = mask.unsqueeze(1).unsqueeze(2)
+        elif mask.dim() == 3 and mask.size(1) == 1:
+            mask = mask.unsqueeze(2)
+    return nn.functional.scaled_dot_product_attention(
+        query, key, value,
+        attn_mask=mask,
+        dropout_p=dropout.p if dropout is not None and dropout.training else 0.0,
+        is_causal=False # If decoder autoregressive, set to True
+    )
 
 class MultiHeadSelfAttention(nn.Module):
+    "Implement the Multi-Head Self-Attention mechanism."
     def __init__(self, d_model, n_heads=2, dropout=0.1):
         super(MultiHeadSelfAttention, self).__init__()
         assert d_model % n_heads == 0, f"Can't divide dimension {d_model} into {n_heads} heads"
         self.d_k = d_model // n_heads
         self.n_heads = n_heads
-        self.W_q =  nn.Parameter(torch.randn(n_heads, self.d_k, d_model))
-        self.W_k =  nn.Parameter(torch.randn(n_heads, self.d_k, d_model))
-        self.W_v =  nn.Parameter(torch.randn(n_heads, self.d_k, d_model))
-        self.W_o =  nn.Linear(d_model, d_model)
+        self.w_q =  nn.Linear(d_model, d_model, bias=False)
+        self.w_k =  nn.Linear(d_model, d_model, bias=False)
+        self.w_v =  nn.Linear(d_model, d_model, bias=False)
+        self.w_o =  nn.Linear(d_model, d_model, bias=False)
+
         self.attn = None
         self.dropout = nn.Dropout(dropout)
 
+        
     def forward(self, x, mask=None):
+        B, N, _ = x.size()
         if mask is not None:
             mask = mask.unsqueeze(1)
 
         # 1) Do all the linear projections in batch from d_model => h x d_k
-        query = torch.einsum("bnd,hkd->bh nk", x, self.W_q)
-        key = torch.einsum("bnd,hkd->bh nk", x, self.W_k)
-        value = torch.einsum("bnd,hkd->bh nk", x, self.W_v)
+        q = self.w_q(x).view(B, N, self.n_heads, self.d_k).transpose(1, 2)
+        k = self.w_k(x).view(B, N, self.n_heads, self.d_k).transpose(1, 2)
+        v = self.w_v(x).view(B, N, self.n_heads, self.d_k).transpose(1, 2)
 
-        # 2) Apply scaled dot-product attention
-        x, self.attn = attention(query, key, value, mask=mask, dropout=self.dropout)
+        # 2) Apply attention on all the projected vectors in batch.
+        x = attention(q, k, v, mask=mask, dropout=self.dropout)
 
-        # 3) Concat heads → (B, N, d_model)
+        # 3) "Concat" using a view and apply a final linear.
         x = x.transpose(1, 2).contiguous().view(x.size(0), -1, self.n_heads * self.d_k)
 
-        return self.W_o(x)
+        return self.w_o(x)
 
-class SubLayerConnectionBlock(nn.Module):
+class SubLayerBlock(nn.Module):
+    "Implement the Sub-Layer Block Workflow."
     def __init__(self, hidden_d, n_heads, mlp_ratio=4 ):
         super().__init__()
         self.hidden_d = hidden_d
@@ -137,23 +133,24 @@ class VisionTransformer(nn.Module):
         self.chw = chw # (C, H, W)
         self.n_patches = n_patches
         self.hidden_d = hidden_d
-        assert chw[1] % n_patches == 0, "Input image size must be divisible by number of patches"
-        assert chw[2] % n_patches == 0, "Input image size must be divisible by number of patches"
-        
+        assert chw[1] % n_patches == 0 and chw[2] % n_patches == 0, ""
+        "Input image size must be divisible by number of patches"
+
         self.patch_size = (self.chw[1] / n_patches, self.chw[2] / n_patches)
+        self.input_d = int(self.chw[0] * self.patch_size[0] * self.patch_size[1])
 
         # 1) Linear Mapper
-        self.input_d = int(self.chw[0] * self.patch_size[0] * self.patch_size[1])
         self.linear_mapper = nn.Linear(self.input_d, self.hidden_d)
 
         # 2) Learnable classification token
-        self.class_token = nn.Parameter(torch.rand(1, self.hidden_d))
+        self.class_token = nn.Parameter(torch.zeros(1, 1, hidden_d))
         
         # 3) Positional embedding
-        self.positional_encoding = PositionalEncoding(self.hidden_d, 0)
+        seq_length = n_patches ** 2 + 1
+        self.positional_encoding = PositionalEncoding(self.hidden_d, max_len=seq_length)
 
         # 4) Transformer encoder blocks
-        self.blocks = nn.ModuleList([SubLayerConnectionBlock(hidden_d, n_heads) for _ in range(n_blocks)])
+        self.blocks = nn.ModuleList([SubLayerBlock(hidden_d, n_heads) for _ in range(n_blocks)])
         
         # 5) Classification MLP
         self.mlp = nn.Sequential(
@@ -161,13 +158,24 @@ class VisionTransformer(nn.Module):
             nn.Softmax(dim=-1)
         )
 
+        # initialize parameters
+        self._init_weights()
+
+    def _init_weights(self):
+        nn.init.trunc_normal_(self.class_token, std=0.02)
+        for name, p in self.named_parameters():
+            if p.dim() > 1 and 'class_token' not in name:
+                nn.init.xavier_uniform_(p)
+
     def forward(self, images):
-        n, c, h, w = images.shape
-        patches = patchify(images, self.n_patches).to('cuda')
+        B, C, H, W = images.shape
+        device = images.device
+        patches = Patchify(images, self.n_patches).to(device)
         tokens = self.linear_mapper(patches)
 
+        cls = self.class_token.expand(B, -1, -1)
         # Adding classification toekn to the tokens
-        tokens = torch.stack([torch.vstack((self.class_token, tokens[i])) for i in range(len(tokens))])
+        tokens = torch.cat([cls, tokens], dim=1)
 
         # Adding positional embedding
         out = self.positional_encoding(tokens)
@@ -178,6 +186,7 @@ class VisionTransformer(nn.Module):
 
         # Getting the classification token only
         out = out[:, 0]
+
         return self.mlp(out)
     
     
@@ -197,13 +206,24 @@ def main():
     # Defining model and training options
     device = device_confirmation()
     model = VisionTransformer(
-        (1, 28, 28), n_patches=7, n_blocks=2, hidden_d=8, n_heads=2, out_d=10
+        (1, 28, 28), 
+        n_patches=7,
+        n_blocks=2, 
+        hidden_d=8, 
+        n_heads=2, 
+        out_d=10
     ).to(device)
-    N_EPOCHS = 10
-    LR = 0.005
+
+    N_EPOCHS = 5
 
     # Training loop
-    optimizer = Adam(model.parameters(), lr=LR)
+    #optimizer = Adam(model.parameters(), lr=LR)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=0.005, weight_decay=0.05)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+        optimizer,
+        T_max=N_EPOCHS,
+    )
+
     criterion = CrossEntropyLoss()
     for epoch in trange(N_EPOCHS, desc="Training"):
         train_loss = 0.0
@@ -218,7 +238,7 @@ def main():
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-
+        scheduler.step()
         print(f"Epoch {epoch + 1}/{N_EPOCHS} loss: {train_loss:.2f}")
 
     # Test loop
