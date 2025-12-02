@@ -2,10 +2,21 @@
 This is a repository for recoding the knowledge during Vision Transformer learning.
 
 ## Prerequisites
-### Initialization
-By default, `nn.Linear(in_features, out_features)` uses a small-variance initialization, which helps stabilize early training on *large* datasets.
+### Patch Embedding
+First, we need to divide the image into patches and project these regions onto the feature space for obtain the image tokens which shape is `(B, N, C)`, indicate the `Batch`、 `Number of Patches` and `Channel of feature dimension` respectively.
 
-For *smaller* or *more difficult* datasets, using a larger initialization variance can improve performance by increasing the diversity of early weight representations.
+Second, unlike Natural Language Processing (NLP) tokens as a continue sequence, we split our complete image matrix into seperate part. Therefore, **Positional Encoding** is essential for supporting the positional dependency between each patches. 
+
+
+### Self-Attention Mechanism
+
+
+
+### Weight Initialization
+By default, `nn.Linear(in_features, out_features)` uses a small-variance initialization, which helps stabilize early training on ***large*** datasets.
+
+For ***smaller*** or ***more difficult*** datasets, using a larger initialization variance can improve performance by increasing the diversity of early weight representations.
+
 
 
 ## Update Log
