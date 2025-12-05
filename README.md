@@ -3,7 +3,16 @@ This is a repository for recoding the knowledge during Vision Transformer learni
 
 ## Prerequisites
 ### Patch Embedding
-First, we need to divide the image into patches and project these regions onto the feature space for obtain the image tokens which shape is `(B, N, C)`, indicate the `Batch`、 `Number of Patches` and `Channel of feature dimension` respectively.
+First, we need to divide the image into patches and project these regions onto the feature space for obtain the image tokens. The Patch progress as follows:
+```
+Input Shape: (B, C, H, W)
+Patch Progress:
+1. Projection: (B, Embed_dim, H // Patch_size, W // Patch_size)
+2. Flatten: (B, Embed_dim, H // Patch_size * W // Patch_size)
+3. Transpose: (B, H // Patch_size * W // Patch_size, Embed_dim)
+Output Shape: (B, N, M)
+```
+As initial input, `(B, C, H, W)` indicate the `Batch`, `Image channel`, `Height of image` and `Width of image`. As final result, `(B, N, M)` indicate the `Batch`,`Number of Patches` and `Channel of feature dimension` respectively.
 
 Second, unlike Natural Language Processing (NLP) tokens as a continue sequence, we split our complete image matrix into seperate part. Therefore, **Positional Encoding** is essential for supporting the positional dependency between each patches. 
 
